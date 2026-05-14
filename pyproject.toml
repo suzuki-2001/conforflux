@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conforflux"
+version = "0.1.0"
+description = "Inference-time particle guidance on Boltz-2 trunk embeddings for conformational diversity."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Shosuke Suzuki" },
+]
+dependencies = [
+    "torch>=2.2",
+    "numpy",
+    "click>=8",
+    "pytorch-lightning",
+]
+
+[project.scripts]
+conforflux = "conforflux.cli:cli"
+
+[project.urls]
+Repository = "https://github.com/suzuki-2001/conforflux"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["conforflux*"]
