@@ -2,7 +2,7 @@
 
 ![ConforFlux overview](assets/overview.png)
 
-ConforFlux modifies Boltz-2 inference (no retraining): `M` parallel particles are coupled through a pairwise Cα-RMSD repulsion gradient, back-propagated to the trunk's single and pair embeddings. Each updated trunk is then decoded by Boltz-2's structure module as usual, so one input yields a diverse set of conformations instead of a single dominant prediction.
+ConforFlux is an inference-time procedure for Boltz-2. `M` parallel particles are coupled through a pairwise Cα-RMSD repulsion gradient, back-propagated to the trunk's single and pair embeddings. Each updated trunk is then decoded by Boltz-2's structure module as usual, so one input yields a diverse set of conformations instead of a single dominant prediction.
 
 ## Installation
 
@@ -13,7 +13,7 @@ pip install -e ./boltz
 pip install -e .
 ```
 
-The bundled `boltz/` is a copy of Boltz-2 v2.2.1 with one addition: a `guidance_hooks` attribute on the model that the diffusion module consults during inference. Everything else upstream is unchanged.
+The bundled `boltz/` is a copy of Boltz-2 v2.2.1 with one addition, a `guidance_hooks` attribute on the model that the diffusion module consults during inference. Everything else upstream is unchanged.
 
 ## Command line
 
@@ -37,24 +37,10 @@ conforflux predict input.yaml \
 | `--start_frac` | `0.0` | Diffusion-trajectory fraction at which guidance starts. |
 | `--stop_frac` | `0.8` | Diffusion-trajectory fraction at which guidance stops. |
 | `--update_interval` | `3` | Fire the gradient every K diffusion steps. |
+| `--gradient_checkpointing` | off | Enable gradient checkpointing on the per-particle structure-module forward pass to reduce peak GPU memory. Off by default. |
 
-## Python API
+For broader conformational exploration, raise `--sigma` (e.g. 2.5–4 Å); for tighter clustering around the dominant fold, lower it.
 
-`ConforFluxCallback` plugs into a Lightning `Trainer`:
+## Container
 
-```python
-from pytorch_lightning import Trainer
-from conforflux import ConforFluxConfig, ConforFluxCallback
-
-trainer = Trainer(callbacks=[
-    boltz_writer,
-    ConforFluxCallback(ConforFluxConfig(sigma=2.0), num_particles=5),
-])
-trainer.predict(model_module, datamodule=data_module)
-```
-
-For lower-level integration (building the state yourself outside Lightning) use `build_state_from_trunk` — see `conforflux/api.py`.
-
-## License
-
-MIT. The bundled `boltz/` source is licensed separately; see `LICENSE-Boltz`.
+See [`container/README.md`](container/README.md) for Docker and Apptainer/Singularity usage.

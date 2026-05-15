@@ -19,4 +19,3 @@ class ConforFluxConfig:
     resample_interval: int = 10
     bond_tol: float = 1.0  # Å around the expected backbone bond length
     gradient_checkpointing: bool = False
-    gradient_checkpointing_threshold: int = 500  # auto-enable when N_ca exceeds this

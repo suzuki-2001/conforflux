@@ -33,6 +33,9 @@ def cli() -> None:
               help="Guidance stops at this fraction of the trajectory.")
 @click.option("--update_interval", type=int, default=3, show_default=True,
               help="Fire the gradient every K diffusion steps.")
+@click.option("--gradient_checkpointing", is_flag=True, default=False,
+              help="Enable gradient checkpointing on the per-particle structure-module forward pass "
+                   "to reduce peak GPU memory.")
 @click.pass_context
 def predict(
     ctx: click.Context,
@@ -44,6 +47,7 @@ def predict(
     start_frac: float,
     stop_frac: float,
     update_interval: int,
+    gradient_checkpointing: bool,
 ) -> None:
     """Run ConforFlux prediction; extra flags are forwarded to `boltz predict`."""
     config = ConforFluxConfig(
@@ -53,6 +57,7 @@ def predict(
         start_frac=start_frac,
         stop_frac=stop_frac,
         update_interval=update_interval,
+        gradient_checkpointing=gradient_checkpointing,
     )
     _install_callback(config, num_particles)
     _run_boltz_predict([data, *ctx.args])

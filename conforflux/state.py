@@ -71,9 +71,7 @@ class ConforFluxGuidanceState:
         return True
 
     def _should_checkpoint(self) -> bool:
-        if self.config.gradient_checkpointing:
-            return True
-        return len(self.ca_indices) >= self.config.gradient_checkpointing_threshold
+        return self.config.gradient_checkpointing
 
     def _recompute_dc_single(self, s_i: Tensor, z_i: Tensor) -> dict:
         q, c, to_keys, ae, ad, tt = self.dc_module(
@@ -161,9 +159,9 @@ class ConforFluxGuidanceState:
         M = self.M
         update_z = cfg.alpha_z > 0
         noise_scale = (1.0 + math.log1p(max(0.0, t_hat - 1.0))) if cfg.noise_scale else 1.0
-        # Clone x_noisy out of Lightning's inference_mode so autograd can save it.
-        x_noisy = x_noisy.clone()
         with torch.inference_mode(mode=False), torch.enable_grad():
+            # Clone x_noisy out of Lightning's inference_mode so autograd can save it.
+            x_noisy = x_noisy.detach().clone()
             # Restore original forwards under any fairscale checkpoint_wrapper.
             _restored: list[tuple[object, object]] = []
             if structure_module is not None:
