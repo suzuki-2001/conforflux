@@ -1,0 +1,21 @@
+# Python build / install artefacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Inference outputs
+output/
+out/
+*_results_*/
+
+# Local Boltz model cache (use ~/.boltz at runtime)
+.boltz/
