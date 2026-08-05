@@ -1,0 +1,9 @@
+name: conforflux-protenix
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - pip
+  - cuda-toolkit=12.6   # nvcc and the CUDA headers Protenix's layer-norm kernel builds against
+  - pip:
+      - torch==2.7.1
+      - -e ./protenix

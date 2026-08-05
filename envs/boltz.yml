@@ -1,0 +1,14 @@
+name: conforflux-boltz
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - torch==2.11.0
+      - numpy==1.26.4
+      - pytorch-lightning==2.5.0
+      - cuequivariance-ops-torch-cu12==0.9.1
+      - cuequivariance-torch==0.9.1
+      - cuequivariance-ops-cu12==0.9.1
+      - -e ./boltz
+      - -e .

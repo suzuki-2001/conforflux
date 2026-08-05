@@ -1,11 +1,18 @@
 Bootstrap: docker
 From: pytorch/pytorch:2.11.0-cuda13.0-cudnn9-devel
 
+# Which backbone to install: boltz | protenix | openfold3
+# apptainer build --build-arg BACKBONE=protenix conforflux.sif container/Singularity.def
+%arguments
+    BACKBONE=boltz
+
 %files
-    boltz         /opt/conforflux/boltz
     conforflux    /opt/conforflux/conforflux
     examples      /opt/conforflux/examples
     assets        /opt/conforflux/assets
+    boltz         /opt/conforflux/boltz
+    protenix      /opt/conforflux/protenix
+    openfold3     /opt/conforflux/openfold3
     pyproject.toml /opt/conforflux/pyproject.toml
     README.md      /opt/conforflux/README.md
     LICENSE        /opt/conforflux/LICENSE
@@ -17,19 +24,31 @@ From: pytorch/pytorch:2.11.0-cuda13.0-cudnn9-devel
 
     export PIP_BREAK_SYSTEM_PACKAGES=1
     cd /opt/conforflux
-    pip install --no-cache-dir -e ./boltz
-    pip install --no-cache-dir \
-        "cuequivariance-ops-torch-cu12==0.9.1" \
-        "cuequivariance-torch==0.9.1" \
-        "cuequivariance-ops-cu12==0.9.1"
-    pip install --no-cache-dir -e .
+    case "{{ BACKBONE }}" in
+      boltz)
+        pip install --no-cache-dir -e ./boltz
+        pip install --no-cache-dir \
+            "cuequivariance-ops-torch-cu12==0.9.1" \
+            "cuequivariance-torch==0.9.1" \
+            "cuequivariance-ops-cu12==0.9.1"
+        pip install --no-cache-dir -e .
+        ;;
+      protenix)   pip install --no-cache-dir -e ./protenix ;;
+      openfold3)  pip install --no-cache-dir -e ./openfold3 ;;
+      *) echo "BACKBONE must be boltz, protenix or openfold3 (got '{{ BACKBONE }}')" >&2; exit 1 ;;
+    esac
+    echo "{{ BACKBONE }}" > /opt/conforflux/BACKBONE
 
 %environment
     export HOME=/tmp
     export NUMBA_CACHE_DIR=/tmp
 
 %runscript
-    exec conforflux "$@"
+    case "$(cat /opt/conforflux/BACKBONE)" in
+      boltz)     exec boltz "$@" ;;
+      protenix)  exec protenix "$@" ;;
+      openfold3) exec run_openfold "$@" ;;
+    esac
 
 %labels
     Maintainer Shosuke Suzuki

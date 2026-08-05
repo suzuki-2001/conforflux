@@ -1039,6 +1039,53 @@ def cli() -> None:
     is_flag=True,
     help=" to dump the s and z embeddings into a npz file. Default is False.",
 )
+@click.option(
+    "--num_particles",
+    type=int,
+    default=0,
+    help="ConforFlux: number of coupled particles M. 0 disables the guidance.",
+)
+@click.option(
+    "--sigma",
+    type=float,
+    default=2.0,
+    help="ConforFlux: RBF kernel bandwidth on CA RMSD, in Angstrom.",
+)
+@click.option(
+    "--alpha_s",
+    type=float,
+    default=0.02,
+    help="ConforFlux: RMS-normalised step size for the single embedding.",
+)
+@click.option(
+    "--alpha_z",
+    type=float,
+    default=0.02,
+    help="ConforFlux: RMS-normalised step size for the pair embedding.",
+)
+@click.option(
+    "--start_frac",
+    type=float,
+    default=0.0,
+    help="ConforFlux: guidance starts at this fraction of the trajectory.",
+)
+@click.option(
+    "--stop_frac",
+    type=float,
+    default=0.8,
+    help="ConforFlux: guidance stops at this fraction of the trajectory.",
+)
+@click.option(
+    "--update_interval",
+    type=int,
+    default=3,
+    help="ConforFlux: fire the gradient every K diffusion steps.",
+)
+@click.option(
+    "--gradient_checkpointing",
+    is_flag=True,
+    help="ConforFlux: checkpoint the per-particle structure-module forward to cut peak memory.",
+)
 def predict(  # noqa: C901, PLR0915, PLR0912
     data: str,
     out_dir: str,
@@ -1077,6 +1124,14 @@ def predict(  # noqa: C901, PLR0915, PLR0912
     num_subsampled_msa: int = 1024,
     no_kernels: bool = False,
     write_embeddings: bool = False,
+    num_particles: int = 0,
+    sigma: float = 2.0,
+    alpha_s: float = 0.02,
+    alpha_z: float = 0.02,
+    start_frac: float = 0.0,
+    stop_frac: float = 0.8,
+    update_interval: int = 3,
+    gradient_checkpointing: bool = False,
 ) -> None:
     """Run predictions with Boltz."""
     # If cpu, write a friendly warning
@@ -1252,11 +1307,31 @@ def predict(  # noqa: C901, PLR0915, PLR0912
         write_embeddings=write_embeddings,
     )
 
+    # ConforFlux couples num_particles trajectories through a repulsion gradient on the
+    # trunk conditioning. Imported only when asked for, so stock Boltz needs no extra package.
+    callbacks = [pred_writer]
+    if num_particles > 0:
+        from conforflux.callback import ConforFluxCallback
+        from conforflux.config import ConforFluxConfig
+
+        callbacks.append(ConforFluxCallback(
+            ConforFluxConfig(
+                sigma=sigma,
+                alpha_s=alpha_s,
+                alpha_z=alpha_z,
+                start_frac=start_frac,
+                stop_frac=stop_frac,
+                update_interval=update_interval,
+                gradient_checkpointing=gradient_checkpointing,
+            ),
+            num_particles=num_particles,
+        ))
+
     # Set up trainer
     trainer = Trainer(
         default_root_dir=out_dir,
         strategy=strategy,
-        callbacks=[pred_writer],
+        callbacks=callbacks,
         accelerator=accelerator,
         devices=devices,
         precision=32 if model == "boltz1" else "bf16-mixed",

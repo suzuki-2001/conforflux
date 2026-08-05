@@ -19,3 +19,11 @@ out/
 
 # Local Boltz model cache (use ~/.boltz at runtime)
 .boltz/
+
+# JIT-compiled extensions built on first run
+build.ninja
+.ninja_deps
+.ninja_log
+lock
+*.so
+*.o

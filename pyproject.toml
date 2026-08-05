@@ -19,9 +19,6 @@ dependencies = [
     "pytorch-lightning>=2.5,<3.0",
 ]
 
-[project.scripts]
-conforflux = "conforflux.cli:cli"
-
 [project.urls]
 Repository = "https://github.com/suzuki-2001/conforflux"
 

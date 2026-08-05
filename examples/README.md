@@ -28,9 +28,9 @@ boltz predict input.yaml \
 ConforFlux.
 
 ```bash
-conforflux predict input.yaml \
+boltz predict input.yaml \
     --out_dir output_conforflux \
-    --num_particles 5 --sigma 2.5 \
+    --num_particles 5 --sigma 2.5 --alpha_s 0.02 --alpha_z 0.02 \
     --recycling_steps 3 --sampling_steps 200 \
     --output_format pdb --seed 42
 ```

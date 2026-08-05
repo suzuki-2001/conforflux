@@ -1,0 +1,7 @@
+model_update:
+  presets: ["predict"]
+  custom:
+    settings:
+      memory:
+        eval:
+          use_deepspeed_evo_attention: false
