@@ -8,7 +8,6 @@ From: pytorch/pytorch:2.11.0-cuda13.0-cudnn9-devel
 
 %files
     conforflux    /opt/conforflux/conforflux
-    examples      /opt/conforflux/examples
     assets        /opt/conforflux/assets
     boltz         /opt/conforflux/boltz
     protenix      /opt/conforflux/protenix

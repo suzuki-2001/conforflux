@@ -165,15 +165,11 @@ def train(runner_yaml: Path, seed: int | None = None, data_seed: int | None = No
 )
 @click.option("--sigma", type=float, default=2.0,
               help="ConforFlux: RBF kernel bandwidth on Ca RMSD (A).")
-@click.option("--alpha-s", "--alpha_s", "alpha_s", type=float, default=0.001,
+@click.option("--alpha-s", "--alpha_s", "alpha_s", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for si_trunk.")
-@click.option("--alpha-z", "--alpha_z", "alpha_z", type=float, default=0.001,
+@click.option("--alpha-z", "--alpha_z", "alpha_z", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for zij_trunk.")
-@click.option("--start-frac", "--start_frac", "start_frac", type=float, default=0.0,
-              help="ConforFlux: trajectory fraction at which guidance starts.")
-@click.option("--stop-frac", "--stop_frac", "stop_frac", type=float, default=0.8,
-              help="ConforFlux: trajectory fraction at which guidance stops.")
-@click.option("--update-interval", "--update_interval", "update_interval", type=int, default=3,
+@click.option("--update-interval", "--update_interval", "update_interval", type=int, default=5,
               help="ConforFlux: fire the gradient every K diffusion steps.")
 @click.option("--gradient-checkpointing", "--gradient_checkpointing", "gradient_checkpointing",
               is_flag=True, default=False,
@@ -192,11 +188,9 @@ def predict(
     output_dir: Path | None = None,
     num_particles: int = 5,
     sigma: float = 2.0,
-    alpha_s: float = 0.001,
-    alpha_z: float = 0.001,
-    start_frac: float = 0.0,
-    stop_frac: float = 0.8,
-    update_interval: int = 3,
+    alpha_s: float = 0.02,
+    alpha_z: float = 0.02,
+    update_interval: int = 5,
     gradient_checkpointing: bool = False,
 ):
     """Perform inference on a set of queries defined in the query_json."""
@@ -250,8 +244,6 @@ def predict(
             sigma=sigma,
             alpha_s=alpha_s,
             alpha_z=alpha_z,
-            start_frac=start_frac,
-            stop_frac=stop_frac,
             update_interval=update_interval,
         )
         if gradient_checkpointing:

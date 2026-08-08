@@ -13,7 +13,7 @@ docker build --build-arg BACKBONE=boltz -f container/Dockerfile -t conforflux:bo
 
 docker run --rm --gpus all --shm-size=8g \
     -v ~/.boltz:/root/.boltz \
-    -v $(pwd)/examples:/work:ro -v $(pwd)/out:/out -w /work \
+    -v $(pwd)/in:/work:ro -v $(pwd)/out:/out -w /work \
     conforflux:boltz predict input.yaml --out_dir /out \
     --num_particles 5 --sigma 2.5 --seed 42 \
     --recycling_steps 3 --sampling_steps 200 --output_format pdb
@@ -28,23 +28,21 @@ apptainer build --build-arg BACKBONE=boltz conforflux.sif container/Singularity.
 
 apptainer run --nv \
     --bind ~/.boltz:/root/.boltz \
-    --bind $(pwd)/examples:/work --bind $(pwd)/out:/out --pwd /work \
+    --bind $(pwd)/in:/work --bind $(pwd)/out:/out --pwd /work \
     conforflux.sif predict input.yaml --out_dir /out \
     --num_particles 5 --sigma 2.5 --alpha_s 0.02 --alpha_z 0.02 --seed 42 \
     --recycling_steps 3 --sampling_steps 200 --output_format pdb
 ```
 
-The Boltz-2 image reproduces `examples/expected_output/` byte-for-byte.
-
 The other two take their backbone's own arguments:
 
 ```bash
 apptainer run --nv conforflux-protenix.sif pred -i input.json -o /out \
-    --num_particles 5 --sigma 2.0 --alpha_s 0.001 --alpha_z 0.001
+    --num_particles 5 --sigma 2.0 --alpha_s 0.02 --alpha_z 0.02
 
 apptainer run --nv conforflux-openfold3.sif predict \
     --query_json input.json --output_dir /out --runner_yaml of3_runner.yaml --seeds 101 \
-    --num_particles 5 --sigma 2.0 --alpha_s 0.001 --alpha_z 0.001
+    --num_particles 5 --sigma 2.0 --alpha_s 0.02 --alpha_z 0.02
 ```
 
 Set `APPTAINER_CACHEDIR` and `APPTAINER_TMPDIR` if your home partition lacks build space.

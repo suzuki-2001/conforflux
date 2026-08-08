@@ -57,7 +57,7 @@ class ConforFluxCallback(Callback):
             s_inputs=s_inputs,
         )
         with torch.inference_mode(mode=False), torch.no_grad():
-            state._recompute_dc_all()
+            state.prepare()
         hooks.set_state(state)
 
         pl_module.guidance_hooks = hooks

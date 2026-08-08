@@ -1064,21 +1064,9 @@ def cli() -> None:
     help="ConforFlux: RMS-normalised step size for the pair embedding.",
 )
 @click.option(
-    "--start_frac",
-    type=float,
-    default=0.0,
-    help="ConforFlux: guidance starts at this fraction of the trajectory.",
-)
-@click.option(
-    "--stop_frac",
-    type=float,
-    default=0.8,
-    help="ConforFlux: guidance stops at this fraction of the trajectory.",
-)
-@click.option(
     "--update_interval",
     type=int,
-    default=3,
+    default=5,
     help="ConforFlux: fire the gradient every K diffusion steps.",
 )
 @click.option(
@@ -1128,9 +1116,7 @@ def predict(  # noqa: C901, PLR0915, PLR0912
     sigma: float = 2.0,
     alpha_s: float = 0.02,
     alpha_z: float = 0.02,
-    start_frac: float = 0.0,
-    stop_frac: float = 0.8,
-    update_interval: int = 3,
+    update_interval: int = 5,
     gradient_checkpointing: bool = False,
 ) -> None:
     """Run predictions with Boltz."""
@@ -1319,8 +1305,6 @@ def predict(  # noqa: C901, PLR0915, PLR0912
                 sigma=sigma,
                 alpha_s=alpha_s,
                 alpha_z=alpha_z,
-                start_frac=start_frac,
-                stop_frac=stop_frac,
                 update_interval=update_interval,
                 gradient_checkpointing=gradient_checkpointing,
             ),

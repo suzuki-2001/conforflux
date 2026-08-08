@@ -384,7 +384,7 @@ def sample_diffusion_conforflux(
         x_l = x_noisy + step_scale_eta * dt * delta
     # diversity check: pairwise Ca-RMSD of the M final particles
     try:
-        from protenix.model.conforflux_guidance import _differentiable_rmsd
+        from protenix.model.conforflux_guidance import rmsd as _differentiable_rmsd
         cas = [x_l[i, ca_idx, :].float().detach() for i in range(M)]
         rr = []
         for i in range(M):

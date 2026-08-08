@@ -305,11 +305,9 @@ def get_default_runner(
     use_tfg_guidance: bool = False,
     num_particles: int = 5,
     cf_sigma: float = 2.0,
-    cf_alpha_s: float = 0.001,
-    cf_alpha_z: float = 0.001,
-    cf_start_frac: float = 0.0,
-    cf_stop_frac: float = 0.8,
-    cf_update_interval: int = 3,
+    cf_alpha_s: float = 0.02,
+    cf_alpha_z: float = 0.02,
+    cf_update_interval: int = 5,
 ) -> InferenceRunner:
     """
     Get a default InferenceRunner with the specified configurations.
@@ -372,8 +370,6 @@ def get_default_runner(
     configs.conforflux_sigma = cf_sigma
     configs.conforflux_alpha_s = cf_alpha_s
     configs.conforflux_alpha_z = cf_alpha_z
-    configs.conforflux_start_frac = cf_start_frac
-    configs.conforflux_stop_frac = cf_stop_frac
     configs.conforflux_update_interval = cf_update_interval
     configs.sample_diffusion.N_step = n_step
     configs.dtype = dtype
@@ -466,11 +462,9 @@ def inference_jsons(
     use_tfg_guidance: bool = False,
     num_particles: int = 5,
     cf_sigma: float = 2.0,
-    cf_alpha_s: float = 0.001,
-    cf_alpha_z: float = 0.001,
-    cf_start_frac: float = 0.0,
-    cf_stop_frac: float = 0.8,
-    cf_update_interval: int = 3,
+    cf_alpha_s: float = 0.02,
+    cf_alpha_z: float = 0.02,
+    cf_update_interval: int = 5,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,
@@ -558,8 +552,6 @@ def inference_jsons(
         cf_sigma=cf_sigma,
         cf_alpha_s=cf_alpha_s,
         cf_alpha_z=cf_alpha_z,
-        cf_start_frac=cf_start_frac,
-        cf_stop_frac=cf_stop_frac,
         cf_update_interval=cf_update_interval,
     )
     configs = runner.configs
@@ -730,15 +722,11 @@ def protenix_cli() -> None:
 )
 @click.option("--sigma", "cf_sigma", type=float, default=2.0,
               help="ConforFlux: RBF kernel bandwidth on Ca RMSD (A).")
-@click.option("--alpha_s", "cf_alpha_s", type=float, default=0.001,
+@click.option("--alpha_s", "cf_alpha_s", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for s_trunk.")
-@click.option("--alpha_z", "cf_alpha_z", type=float, default=0.001,
+@click.option("--alpha_z", "cf_alpha_z", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for z_trunk.")
-@click.option("--start_frac", "cf_start_frac", type=float, default=0.0,
-              help="ConforFlux: trajectory fraction at which guidance starts.")
-@click.option("--stop_frac", "cf_stop_frac", type=float, default=0.8,
-              help="ConforFlux: trajectory fraction at which guidance stops.")
-@click.option("--update_interval", "cf_update_interval", type=int, default=3,
+@click.option("--update_interval", "cf_update_interval", type=int, default=5,
               help="ConforFlux: fire the gradient every K diffusion steps.")
 @click.option(
     "--use_tfg_guidance",
@@ -831,11 +819,9 @@ def predict(
     use_tfg_guidance: bool = False,
     num_particles: int = 5,
     cf_sigma: float = 2.0,
-    cf_alpha_s: float = 0.001,
-    cf_alpha_z: float = 0.001,
-    cf_start_frac: float = 0.0,
-    cf_stop_frac: float = 0.8,
-    cf_update_interval: int = 3,
+    cf_alpha_s: float = 0.02,
+    cf_alpha_z: float = 0.02,
+    cf_update_interval: int = 5,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,
@@ -997,8 +983,6 @@ def predict(
         cf_sigma=cf_sigma,
         cf_alpha_s=cf_alpha_s,
         cf_alpha_z=cf_alpha_z,
-        cf_start_frac=cf_start_frac,
-        cf_stop_frac=cf_stop_frac,
         cf_update_interval=cf_update_interval,
         hmmsearch_binary_path=hmmsearch_binary_path,
         hmmbuild_binary_path=hmmbuild_binary_path,

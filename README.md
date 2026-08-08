@@ -22,9 +22,10 @@ mamba env create -f envs/openfold3.yml
 Or into an existing environment:
 
 ```bash
-pip install -e ./boltz && pip install -e .    # Boltz-2
-pip install -e ./protenix                     # Protenix
-pip install -e ./openfold3                    # OpenFold3-preview2
+pip install -e .                 # the ConforFlux package, shared by all three
+pip install -e ./boltz           # Boltz-2
+pip install -e ./protenix        # Protenix
+pip install -e ./openfold3       # OpenFold3-preview2
 ```
 
 ## Usage
@@ -35,11 +36,11 @@ boltz predict input.yaml --out_dir ./out \
     --recycling_steps 3 --sampling_steps 200 --output_format pdb
 
 protenix pred -i input.json -o ./out \
-    --num_particles 5 --sigma 2.0 --alpha_s 0.001 --alpha_z 0.001
+    --num_particles 5 --sigma 2.0 --alpha_s 0.02 --alpha_z 0.02
 
 run_openfold predict --query_json input.json --output_dir ./out \
     --runner_yaml openfold3/of3_runner.yaml --seeds 101 \
-    --num_particles 5 --sigma 2.0 --alpha_s 0.001 --alpha_z 0.001
+    --num_particles 5 --sigma 2.0 --alpha_s 0.02 --alpha_z 0.02
 ```
 
 ## Options
@@ -47,9 +48,9 @@ run_openfold predict --query_json input.json --output_dir ./out \
 | Flag | Default | Meaning |
 |---|---|---|
 | `--num_particles` | `5` | Coupled particles `M`. Replaces the backbone's own sample-count flag. `0` runs the backbone unguided. |
-| `--sigma` | `2.0` | RBF kernel bandwidth on Cα RMSD (Å). Coverage is flat across 1–2 Å and degrades above 4 Å. |
-| `--alpha_s` / `--alpha_z` | `0.02` (Boltz-2), `0.001` (Protenix, OpenFold3) | RMS-normalised step size for the single and pair embedding. |
-| `--update_interval` | `3` | Fire the gradient every K diffusion steps. |
+| `--sigma` | `2.0` | RBF kernel bandwidth on Cα RMSD (Å). |
+| `--alpha_s` / `--alpha_z` | `0.02` | RMS-normalised step size for the single and pair embedding. |
+| `--update_interval` | `5` | Fire the gradient every K diffusion steps. |
 | `--gradient_checkpointing` | off | Reduce peak GPU memory. Boltz-2 and OpenFold3. |
 | `--seeds` | — | OpenFold3 only; comma-separated list. Upstream draws its seeds from a fixed start seed. |
 

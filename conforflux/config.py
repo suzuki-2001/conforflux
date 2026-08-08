@@ -5,17 +5,18 @@ from dataclasses import dataclass
 
 @dataclass
 class ConforFluxConfig:
-    sigma: float = 2.0  # RBF kernel bandwidth on Cα RMSD (Å)
-    alpha_s: float = 0.02  # RMS-normalised step size for s_trunk
-    alpha_z: float = 0.02  # RMS-normalised step size for z_trunk
-    start_frac: float = 0.0  # fraction of the diffusion trajectory at which guidance starts
-    stop_frac: float = 0.8  # fraction of the diffusion trajectory at which guidance stops
-    update_interval: int = 3  # fire the gradient every K diffusion steps
-    rms_eps: float = 1e-30
-    noise_scale: bool = True  # scale the update by Boltz-2's EDM noise level
-    max_offdiag_scale: bool = True  # scale by max off-diagonal kernel value (vanishes when spread)
-    kernel_saturation_threshold: float = 0.01  # skip update when max off-diagonal < threshold
-    resample: bool = True  # replace particles with broken Cα geometry
+    """The settings used for every result in the paper."""
+
+    sigma: float = 2.0                       # RBF bandwidth on Calpha-RMSD, in Angstrom
+    alpha_s: float = 0.02                    # step size on s_trunk, in units of its own RMS
+    alpha_z: float = 0.02                    # step size on z_trunk; 0 disables the pair update
+    update_interval: int = 5                 # fire the gradient every K diffusion steps
+    noise_scale: bool = False                # scale the step by the EDM noise level
+    max_offdiag_scale: bool = True           # scale the step by the largest off-diagonal kernel
+    kernel_saturation_threshold: float = 0.01  # below this the particles are already apart
+    resample: bool = True                    # replace particles whose backbone has broken
     resample_interval: int = 10
-    bond_tol: float = 1.0  # Å around the expected backbone bond length
-    gradient_checkpointing: bool = False
+    bond_tol: float = 1.0                    # Angstrom around the expected Calpha-Calpha bond
+    rms_eps: float = 1e-30
+    gradient_checkpointing: bool = False     # recompute activations instead of storing them
+    objective: str = "repulsion"             # "repulsion", or "noise" for the matched control

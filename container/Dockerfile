@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY conforflux/    /opt/conforflux/conforflux/
-COPY examples/      /opt/conforflux/examples/
 COPY assets/        /opt/conforflux/assets/
 COPY boltz/         /opt/conforflux/boltz/
 COPY protenix/      /opt/conforflux/protenix/
