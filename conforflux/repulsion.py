@@ -106,23 +106,13 @@ class ConforFluxState:
         noise = (1.0 + math.log1p(max(0.0, t_hat - 1.0))) if cfg.noise_scale else 1.0
         self.last = {"step": step_idx}
 
-        if cfg.objective == "noise":
-            with torch.no_grad():
-                for i in range(M):
-                    self.s_particles[i] -= cfg.alpha_s * noise * rms_normalize(
-                        torch.randn_like(self.s_particles[i]), cfg.rms_eps)
-                    if update_z:
-                        self.z_particles[i] -= cfg.alpha_z * noise * rms_normalize(
-                            torch.randn_like(self.z_particles[i]), cfg.rms_eps)
-            self.last.update(scale=noise, updated=True)
-            return True
-
         with torch.enable_grad():
             s_list, z_list, cas = [], [], []
             for i in range(M):
                 s_i = self._take(self.s_particles, i).detach().clone().requires_grad_(True)
-                z_i = (self._take(self.z_particles, i).detach().clone().requires_grad_(True)
-                       if update_z else self._take(self.z_particles, i))
+                z_i = self._take(self.z_particles, i).detach().clone()
+                if update_z:
+                    z_i.requires_grad_(True)
                 if cfg.gradient_checkpointing:
                     ca = torch.utils.checkpoint.checkpoint(
                         denoise_ca, s_i, z_i, i, use_reentrant=False)

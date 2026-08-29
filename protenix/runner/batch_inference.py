@@ -307,7 +307,8 @@ def get_default_runner(
     cf_sigma: float = 2.0,
     cf_alpha_s: float = 0.02,
     cf_alpha_z: float = 0.02,
-    cf_update_interval: int = 5,
+    cf_update_interval: int = 3,
+    cf_noise_level: bool = False,
 ) -> InferenceRunner:
     """
     Get a default InferenceRunner with the specified configurations.
@@ -371,6 +372,7 @@ def get_default_runner(
     configs.conforflux_alpha_s = cf_alpha_s
     configs.conforflux_alpha_z = cf_alpha_z
     configs.conforflux_update_interval = cf_update_interval
+    configs.conforflux_noise_scale = cf_noise_level
     configs.sample_diffusion.N_step = n_step
     configs.dtype = dtype
     configs.use_msa = use_msa
@@ -464,7 +466,8 @@ def inference_jsons(
     cf_sigma: float = 2.0,
     cf_alpha_s: float = 0.02,
     cf_alpha_z: float = 0.02,
-    cf_update_interval: int = 5,
+    cf_update_interval: int = 3,
+    cf_noise_level: bool = False,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,
@@ -553,6 +556,7 @@ def inference_jsons(
         cf_alpha_s=cf_alpha_s,
         cf_alpha_z=cf_alpha_z,
         cf_update_interval=cf_update_interval,
+        cf_noise_level=cf_noise_level,
     )
     configs = runner.configs
     for _, infer_json in enumerate(tqdm.tqdm(infer_jsons)):
@@ -726,8 +730,11 @@ def protenix_cli() -> None:
               help="ConforFlux: RMS-normalised step size for s_trunk.")
 @click.option("--alpha_z", "cf_alpha_z", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for z_trunk.")
-@click.option("--update_interval", "cf_update_interval", type=int, default=5,
+@click.option("--update_interval", "cf_update_interval", type=int, default=3,
               help="ConforFlux: fire the gradient every K diffusion steps.")
+@click.option("--noise_level/--no_noise_level", "cf_noise_level", default=False,
+              help="ConforFlux: scale the step by the noise level of the step it is applied at. "
+                   "Pushes harder, at a higher clashscore.")
 @click.option(
     "--use_tfg_guidance",
     type=bool,
@@ -984,6 +991,7 @@ def predict(
         cf_alpha_s=cf_alpha_s,
         cf_alpha_z=cf_alpha_z,
         cf_update_interval=cf_update_interval,
+        cf_noise_level=cf_noise_level,
         hmmsearch_binary_path=hmmsearch_binary_path,
         hmmbuild_binary_path=hmmbuild_binary_path,
         seqres_database_path=seqres_database_path,

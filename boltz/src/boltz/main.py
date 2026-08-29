@@ -1042,7 +1042,7 @@ def cli() -> None:
 @click.option(
     "--num_particles",
     type=int,
-    default=0,
+    default=5,
     help="ConforFlux: number of coupled particles M. 0 disables the guidance.",
 )
 @click.option(
@@ -1066,8 +1066,14 @@ def cli() -> None:
 @click.option(
     "--update_interval",
     type=int,
-    default=5,
+    default=3,
     help="ConforFlux: fire the gradient every K diffusion steps.",
+)
+@click.option(
+    "--noise_level/--no_noise_level",
+    default=False,
+    help="ConforFlux: scale the step by the noise level of the step it is applied at. "
+         "Pushes harder, at a higher clashscore.",
 )
 @click.option(
     "--gradient_checkpointing",
@@ -1306,6 +1312,7 @@ def predict(  # noqa: C901, PLR0915, PLR0912
                 alpha_s=alpha_s,
                 alpha_z=alpha_z,
                 update_interval=update_interval,
+                noise_scale=noise_level,
                 gradient_checkpointing=gradient_checkpointing,
             ),
             num_particles=num_particles,

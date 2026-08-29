@@ -169,8 +169,11 @@ def train(runner_yaml: Path, seed: int | None = None, data_seed: int | None = No
               help="ConforFlux: RMS-normalised step size for si_trunk.")
 @click.option("--alpha-z", "--alpha_z", "alpha_z", type=float, default=0.02,
               help="ConforFlux: RMS-normalised step size for zij_trunk.")
-@click.option("--update-interval", "--update_interval", "update_interval", type=int, default=5,
+@click.option("--update-interval", "--update_interval", "update_interval", type=int, default=3,
               help="ConforFlux: fire the gradient every K diffusion steps.")
+@click.option("--noise-level/--no-noise-level", "noise_level", default=False,
+              help="ConforFlux: scale the step by the noise level of the step it is applied at. "
+                   "Pushes harder, at a higher clashscore.")
 @click.option("--gradient-checkpointing", "--gradient_checkpointing", "gradient_checkpointing",
               is_flag=True, default=False,
               help="ConforFlux: recompute diffusion-transformer blocks in the backward pass "
@@ -245,6 +248,7 @@ def predict(
             alpha_s=alpha_s,
             alpha_z=alpha_z,
             update_interval=update_interval,
+            noise_scale=noise_level,
         )
         if gradient_checkpointing:
             # use_reentrant must stay False: the guidance takes its gradient through

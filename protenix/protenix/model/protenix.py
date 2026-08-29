@@ -346,6 +346,7 @@ class Protenix(nn.Module):
                 alpha_z=self.configs.conforflux_alpha_z,
                 sigma=self.configs.conforflux_sigma,
                 update_interval=self.configs.conforflux_update_interval,
+                noise_scale=self.configs.conforflux_noise_scale,
             )
             k = dict(kwargs)
             M = k.pop("N_sample", 5)

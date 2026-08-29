@@ -48,11 +48,14 @@ run_openfold predict --query_json input.json --output_dir ./out \
 | Flag | Default | Meaning |
 |---|---|---|
 | `--num_particles` | `5` | Coupled particles `M`. Replaces the backbone's own sample-count flag. `0` runs the backbone unguided. |
-| `--sigma` | `2.0` | RBF kernel bandwidth on Cα RMSD (Å). |
+| `--sigma` | `2.0` | RBF kernel bandwidth on Cα RMSD (Å). One value per run. The paper sweeps 0.5–2.5. |
 | `--alpha_s` / `--alpha_z` | `0.02` | RMS-normalised step size for the single and pair embedding. |
-| `--update_interval` | `5` | Fire the gradient every K diffusion steps. |
+| `--update_interval` | `3` | Fire the gradient every K diffusion steps. |
+| `--noise_level` | off | Scale the step by the noise level of the step it is applied at. Pushes harder: a wider ensemble at a higher clashscore. |
 | `--gradient_checkpointing` | off | Reduce peak GPU memory. Boltz-2 and OpenFold3. |
-| `--seeds` | — | OpenFold3 only; comma-separated list. Upstream draws its seeds from a fixed start seed. |
+| `--seeds` | — | OpenFold3 only, comma-separated. Upstream draws its seeds from a fixed start seed. |
+
+The defaults are the paper's `Ours (λ)`. `--noise_level` gives `Ours (λ_t)`.
 
 ## Container
 

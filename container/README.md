@@ -4,7 +4,7 @@
 `openfold3` — and becomes the image's entry point. One backbone per image.
 
 Model weights are downloaded on first run into the backbone's cache (`~/.boltz`,
-`~/.openfold3`); mount it to persist them.
+`~/.openfold3`). Mount it to persist them.
 
 ## Docker
 
