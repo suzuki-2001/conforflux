@@ -1123,6 +1123,7 @@ def predict(  # noqa: C901, PLR0915, PLR0912
     alpha_s: float = 0.02,
     alpha_z: float = 0.02,
     update_interval: int = 5,
+    noise_level: bool = False,
     gradient_checkpointing: bool = False,
 ) -> None:
     """Run predictions with Boltz."""
@@ -1326,6 +1327,7 @@ def predict(  # noqa: C901, PLR0915, PLR0912
         accelerator=accelerator,
         devices=devices,
         precision=32 if model == "boltz1" else "bf16-mixed",
+        inference_mode=num_particles <= 0,
     )
 
     if filtered_manifest.records:

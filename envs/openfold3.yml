@@ -6,3 +6,4 @@ dependencies:
   - pip:
       - torch==2.5.1
       - -e ./openfold3
+      - -e .

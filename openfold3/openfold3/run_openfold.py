@@ -194,6 +194,7 @@ def predict(
     alpha_s: float = 0.02,
     alpha_z: float = 0.02,
     update_interval: int = 5,
+    noise_level: bool = False,
     gradient_checkpointing: bool = False,
 ):
     """Perform inference on a set of queries defined in the query_json."""

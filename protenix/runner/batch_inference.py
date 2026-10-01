@@ -829,6 +829,7 @@ def predict(
     cf_alpha_s: float = 0.02,
     cf_alpha_z: float = 0.02,
     cf_update_interval: int = 5,
+    cf_noise_level: bool = False,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,

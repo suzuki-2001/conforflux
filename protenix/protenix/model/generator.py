@@ -369,7 +369,7 @@ def sample_diffusion_conforflux(
         x_noisy = x_l + noise_scale_lambda * delta_noise_level * torch.randn_like(x_l)
         t_hat_M = t_hat.reshape(1).expand(M).to(dtype)
 
-        if is_guided_step(step_i, total, cf_cfg):
+        if is_guided_step(step_i, cf_cfg):
             s_particles, z_particles = conforflux_update(
                 s_particles, z_particles, x_noisy, t_hat_M,
                 _denoiser_fn, ca_idx, cf_cfg, step_i, total,

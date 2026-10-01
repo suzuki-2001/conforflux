@@ -26,8 +26,8 @@ RUN set -eu; \
             "cuequivariance-torch==0.9.1" \
             "cuequivariance-ops-cu12==0.9.1"; \
         pip install --no-cache-dir -e . ;; \
-      protenix)   pip install --no-cache-dir -e ./protenix ;; \
-      openfold3)  pip install --no-cache-dir -e ./openfold3 ;; \
+      protenix)   pip install --no-cache-dir -e ./protenix && pip install --no-cache-dir -e . ;; \
+      openfold3)  pip install --no-cache-dir -e ./openfold3 && pip install --no-cache-dir -e . ;; \
       *) echo "BACKBONE must be boltz, protenix or openfold3 (got '${BACKBONE}')" >&2; exit 1 ;; \
     esac
 

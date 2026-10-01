@@ -7,3 +7,4 @@ dependencies:
   - pip:
       - torch==2.7.1
       - -e ./protenix
+      - -e .
