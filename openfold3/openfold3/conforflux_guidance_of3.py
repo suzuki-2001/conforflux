@@ -1,36 +1,34 @@
-"""ConforFlux for OpenFold3-preview2: the shared core, wired to OF3's denoiser.
+"""ConforFlux for OpenFold3-preview2: the shared core wired to OF3's denoiser."""
 
-The method lives in `conforflux.repulsion` and is the same object every backbone runs.
-This file is the adapter.
-
-OF3-specific wiring:
-  * tensors carry a [batch, sample] leading pair of dims, so the M particles are held as
-    Python lists of per-particle tensors (s_i [B,1,N_tok,c_s], z_i [B,1,N_tok,N_tok,c_z])
-    rather than as one stacked tensor.
-  * denoiser_fn(s_i, z_i, x_i, t) -> x0 [B,1,N_atom,3] calls model.diffusion_module.
-  * Calpha positions via get_token_center_atoms(batch, x0, atom_mask).
-"""
 from __future__ import annotations
 
 import os
-from dataclasses import replace
 from typing import Callable
 
 import torch
 from torch import Tensor
 
-
 from conforflux.repulsion import (
-    ConforFluxConfig, ConforFluxState, is_guided_step, rigid_align, rmsd, rms_normalize,
+    ConforFluxConfig,
+    ConforFluxState,
+    is_guided_step,
+    rms_normalize,
 )
+from conforflux.superposition import rigid_align, rmsd
 
-__all__ = ["ConforFluxConfig", "conforflux_update", "is_guided_step", "sample_conforflux",
-           "rigid_align", "rmsd", "rms_normalize"]
+__all__ = [
+    "ConforFluxConfig",
+    "conforflux_update",
+    "is_guided_step",
+    "sample_conforflux",
+    "rigid_align",
+    "rmsd",
+    "rms_normalize",
+]
 
 
 class _ListState(ConforFluxState):
-    """OF3 keeps the M particles as a Python list of tensors that already carry their own
-    [batch, sample] leading dims, so a particle is one list element rather than a slice."""
+    """Particles as a list of tensors that carry OF3's [batch, sample] dims."""
 
     def _take(self, arr, i):
         return arr[i]
@@ -53,10 +51,18 @@ class _ListState(ConforFluxState):
         return st
 
 
-def conforflux_update(s_particles: list, z_particles: list, x_noisy: list, t: Tensor,
-                      denoiser_fn: Callable, ca_fn: Callable, cfg: ConforFluxConfig,
-                      step_i: int, total_steps: int,
-                      state: _ListState | None = None) -> tuple[list, list]:
+def conforflux_update(
+    s_particles: list,
+    z_particles: list,
+    x_noisy: list,
+    t: Tensor,
+    denoiser_fn: Callable,
+    ca_fn: Callable,
+    cfg: ConforFluxConfig,
+    step_i: int,
+    total_steps: int,
+    state: _ListState | None = None,
+) -> tuple[list, list]:
     """One guided embedding update, in OF3's list-of-particles layout."""
     st = state if state is not None else _ListState.from_lists(s_particles, z_particles, cfg)
     st.s_particles = s_particles
@@ -73,9 +79,17 @@ def conforflux_update(s_particles: list, z_particles: list, x_noisy: list, t: Te
     return st.s_particles, st.z_particles
 
 
-def sample_conforflux(sample_diffusion, batch: dict, si_input: Tensor, si_trunk: Tensor,
-                      zij_trunk: Tensor, noise_schedule: Tensor, no_rollout_samples: int,
-                      cfg: ConforFluxConfig, **denoise_kwargs) -> Tensor:
+def sample_conforflux(
+    sample_diffusion,
+    batch: dict,
+    si_input: Tensor,
+    si_trunk: Tensor,
+    zij_trunk: Tensor,
+    noise_schedule: Tensor,
+    no_rollout_samples: int,
+    cfg: ConforFluxConfig,
+    **denoise_kwargs,
+) -> Tensor:
     """SampleDiffusion.forward with the M rollouts coupled. Returns [B, M, N_atom, 3]."""
     from openfold3.core.model.structure.diffusion_module import centre_random_augmentation
     from openfold3.core.utils.atomize_utils import get_token_center_atoms
@@ -97,9 +111,16 @@ def sample_conforflux(sample_diffusion, batch: dict, si_input: Tensor, si_trunk:
 
     def denoise(s_i, z_i, xn, t):
         return sd.diffusion_module(
-            batch=batch, xl_noisy=xn, token_mask=batch["token_mask"], atom_mask=atom_mask,
-            t=t.to(xn.device), si_input=si_input, si_trunk=s_i, zij_trunk=z_i,
-            **denoise_kwargs)
+            batch=batch,
+            xl_noisy=xn,
+            token_mask=batch["token_mask"],
+            atom_mask=atom_mask,
+            t=t.to(xn.device),
+            si_input=si_input,
+            si_trunk=s_i,
+            zij_trunk=z_i,
+            **denoise_kwargs,
+        )
 
     def ca_fn(x0):
         center_x, center_mask = get_token_center_atoms(batch, x0, atom_mask)
@@ -110,8 +131,10 @@ def sample_conforflux(sample_diffusion, batch: dict, si_input: Tensor, si_trunk:
         z_particles = [zij_trunk.detach().clone() for _ in range(M)]
         state = _ListState.from_lists(s_particles, z_particles, cfg)
         xl_list = [
-            noise_schedule[0] * torch.randn(
-                (batch_dim, 1, num_atoms, 3), device=atom_mask.device, dtype=atom_mask.dtype)
+            noise_schedule[0]
+            * torch.randn(
+                (batch_dim, 1, num_atoms, 3), device=atom_mask.device, dtype=atom_mask.dtype
+            )
             for _ in range(M)
         ]
 
@@ -121,13 +144,26 @@ def sample_conforflux(sample_diffusion, batch: dict, si_input: Tensor, si_trunk:
             x_noisy = []
             for m in range(M):
                 xlm = centre_random_augmentation(xl=xl_list[m], atom_mask=atom_mask)
-                noise = sd.noise_scale * torch.sqrt(t ** 2 - noise_schedule[tau] ** 2) * torch.randn_like(xlm)
+                noise = (
+                    sd.noise_scale
+                    * torch.sqrt(t**2 - noise_schedule[tau] ** 2)
+                    * torch.randn_like(xlm)
+                )
                 x_noisy.append(xlm + noise)
 
             if is_guided_step(tau, cfg):
                 s_particles, z_particles = conforflux_update(
-                    s_particles, z_particles, x_noisy, t, denoise, ca_fn, cfg, tau, total,
-                    state=state)
+                    s_particles,
+                    z_particles,
+                    x_noisy,
+                    t,
+                    denoise,
+                    ca_fn,
+                    cfg,
+                    tau,
+                    total,
+                    state=state,
+                )
 
             with torch.no_grad():
                 x_den = [denoise(s_particles[m], z_particles[m], x_noisy[m], t) for m in range(M)]

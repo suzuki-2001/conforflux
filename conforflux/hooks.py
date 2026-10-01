@@ -9,7 +9,6 @@ from conforflux.state import ConforFluxGuidanceState
 
 
 class ConforFluxHooks:
-
     def __init__(self, config: ConforFluxConfig, ca_indices: Tensor) -> None:
         self.config = config
         self.ca_indices = ca_indices
@@ -31,7 +30,11 @@ class ConforFluxHooks:
         if state is None or not state.is_active(step_idx, total_steps):
             return network_condition_kwargs
         state.step_embedding_update(
-            x_noisy, t_hat, structure_module, network_condition_kwargs,
-            step_idx, total_steps,
+            x_noisy,
+            t_hat,
+            structure_module,
+            network_condition_kwargs,
+            step_idx,
+            total_steps,
         )
         return network_condition_kwargs

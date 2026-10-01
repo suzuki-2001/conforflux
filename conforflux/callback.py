@@ -10,7 +10,6 @@ from conforflux.trunk import get_ca_indices, run_trunk
 
 
 class ConforFluxCallback(Callback):
-
     def __init__(self, config: ConforFluxConfig, num_particles: int) -> None:
         self.config = config
         self.num_particles = num_particles
@@ -19,11 +18,19 @@ class ConforFluxCallback(Callback):
     def setup(self, trainer, pl_module, stage: str | None = None) -> None:
         if stage not in (None, "predict"):
             return
-        if self.num_particles > 1 and pl_module.predict_args["diffusion_samples"] != self.num_particles:
+        if (
+            self.num_particles > 1
+            and pl_module.predict_args["diffusion_samples"] != self.num_particles
+        ):
             pl_module.predict_args["diffusion_samples"] = self.num_particles
 
     def on_predict_batch_start(
-        self, trainer, pl_module, batch, batch_idx, dataloader_idx: int = 0,
+        self,
+        trainer,
+        pl_module,
+        batch,
+        batch_idx,
+        dataloader_idx: int = 0,
     ) -> None:
         device = next(pl_module.parameters()).device
 
@@ -36,13 +43,9 @@ class ConforFluxCallback(Callback):
 
         s_trunk, z_trunk, s_inputs, rel_pos_enc = run_trunk(pl_module, batch)
 
-        # batch comes from Lightning's inference_mode; clone so autograd-tracked
-        # DC recomputations can use it.
+        # batch was made under inference_mode, which autograd cannot use.
         with torch.inference_mode(mode=False), torch.no_grad():
-            feats = {
-                k: (v.clone() if isinstance(v, torch.Tensor) else v)
-                for k, v in batch.items()
-            }
+            feats = {k: (v.clone() if isinstance(v, torch.Tensor) else v) for k, v in batch.items()}
 
         hooks = ConforFluxHooks(self.config, ca_indices)
         state = ConforFluxGuidanceState(

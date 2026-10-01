@@ -1,4 +1,5 @@
 """The ConforFlux update: repulsion between diffusion particles on the trunk embeddings."""
+
 from __future__ import annotations
 
 import math
@@ -8,19 +9,20 @@ import torch
 from torch import Tensor
 
 from conforflux.config import ConforFluxConfig
-from conforflux.superposition import rigid_align, rmsd
+from conforflux.superposition import rmsd
 
 
 def rms_normalize(grad: Tensor, eps: float = 1e-30) -> Tensor:
-    return grad / torch.sqrt(torch.mean(grad ** 2) + eps)
+    return grad / torch.sqrt(torch.mean(grad**2) + eps)
 
 
 def is_guided_step(step_idx: int, cfg: ConforFluxConfig) -> bool:
-    """Every step in the trajectory is a candidate; the interval thins them."""
     return cfg.update_interval <= 1 or step_idx % cfg.update_interval == 0
 
 
-def broken_particles(cas: list[Tensor], bond_tol: float, bond: float) -> tuple[list[int], list[int], list[float]]:
+def broken_particles(
+    cas: list[Tensor], bond_tol: float, bond: float
+) -> tuple[list[int], list[int], list[float]]:
     """Split particles by whether their Calpha trace still has physical bond lengths."""
     healthy: list[int] = []
     broken: list[int] = []
@@ -34,29 +36,23 @@ def broken_particles(cas: list[Tensor], bond_tol: float, bond: float) -> tuple[l
 
 
 class ConforFluxState:
-    """M copies of the trunk embeddings, pushed apart in Calpha space.
+    """M copies of the trunk embeddings, pushed apart in Calpha space."""
 
-    `denoise_ca(s_i, z_i, i)` runs the backbone's denoiser for particle `i` on the current
-    trunk copies and returns its Calpha coordinates, differentiably.
-    """
-
-    def __init__(self, s_trunk: Tensor, z_trunk: Tensor, num_particles: int,
-                 cfg: ConforFluxConfig) -> None:
+    def __init__(
+        self, s_trunk: Tensor, z_trunk: Tensor, num_particles: int, cfg: ConforFluxConfig
+    ) -> None:
         self.cfg = cfg
         self.M = num_particles
         self.s_particles = s_trunk.expand(num_particles, *s_trunk.shape[1:]).clone().float()
         self.z_particles = z_trunk.expand(num_particles, *z_trunk.shape[1:]).clone().float()
-        self.bond = 3.8                      # protein Calpha; RNA C1' is set on the first call
-        self.last: dict = {}                 # diagnostics for the caller to log
+        self.bond = 3.8  # protein Calpha; RNA C1' is set on the first call
+        self.last: dict = {}  # diagnostics for the caller to log
 
     @classmethod
-    def from_particles(cls, s_particles: Tensor, z_particles: Tensor,
-                       cfg: ConforFluxConfig) -> "ConforFluxState":
-        """Attach to particle tensors a backbone already owns, updating them in place.
-
-        Protenix and OpenFold3 carry the M copies themselves through their samplers, so the
-        state has to write into those tensors rather than into copies of its own.
-        """
+    def from_particles(
+        cls, s_particles: Tensor, z_particles: Tensor, cfg: ConforFluxConfig
+    ) -> "ConforFluxState":
+        """Attach to particle tensors a backbone already owns, updating them in place."""
         st = cls.__new__(cls)
         st.cfg = cfg
         st.M = int(s_particles.shape[0])
@@ -66,12 +62,9 @@ class ConforFluxState:
         st.last = {}
         return st
 
-    # How a single particle is taken out of the container and put back. Boltz-2 and Protenix
-    # stack the M particles in a tensor, where a particle is a slice that keeps the leading
-    # dimension the denoiser expects; OpenFold3 keeps a Python list of tensors that already
-    # carry their own leading dims. `_ListState` overrides these two.
+    # A particle is a slice of a stacked tensor; OpenFold3's `_ListState` overrides these.
     def _take(self, arr, i: int):
-        return arr[i:i + 1]
+        return arr[i : i + 1]
 
     def _put(self, arr, i: int, delta: Tensor) -> None:
         arr[i] = arr[i] - delta.squeeze(0)
@@ -88,7 +81,8 @@ class ConforFluxState:
             if step_idx == 0 and float(d.median()) > 4.5:
                 self.bond = 5.9
             healthy, broken, scores = broken_particles(
-                [c.detach() for c in cas], cfg.bond_tol, self.bond)
+                [c.detach() for c in cas], cfg.bond_tol, self.bond
+            )
             if not broken or not healthy:
                 return
             best = min(healthy, key=lambda i: scores[i])
@@ -97,8 +91,9 @@ class ConforFluxState:
                 self._copy(self.z_particles, b, best)
             self.last["resampled"] = broken
 
-    def step(self, denoise_ca: Callable[[Tensor, Tensor, int], Tensor],
-             t_hat: float, step_idx: int) -> bool:
+    def step(
+        self, denoise_ca: Callable[[Tensor, Tensor, int], Tensor], t_hat: float, step_idx: int
+    ) -> bool:
         """One update. Returns whether the embeddings moved."""
         cfg = self.cfg
         M = self.M
@@ -115,7 +110,8 @@ class ConforFluxState:
                     z_i.requires_grad_(True)
                 if cfg.gradient_checkpointing:
                     ca = torch.utils.checkpoint.checkpoint(
-                        denoise_ca, s_i, z_i, i, use_reentrant=False)
+                        denoise_ca, s_i, z_i, i, use_reentrant=False
+                    )
                 else:
                     ca = denoise_ca(s_i, z_i, i)
                 s_list.append(s_i)
@@ -131,7 +127,7 @@ class ConforFluxState:
                     v = torch.clamp(rmsd(cas[i], cas[j]), min=0.1)
                     r[i, j] = v
                     r[j, i] = v
-            kernel = torch.exp(-r ** 2 / (2 * cfg.sigma ** 2))
+            kernel = torch.exp(-(r**2) / (2 * cfg.sigma**2))
             upper = torch.triu(torch.ones_like(kernel), diagonal=1).bool()
             loss = kernel[upper].sum()
 
@@ -139,12 +135,14 @@ class ConforFluxState:
             off.fill_diagonal_(0.0)
             max_offdiag = float(off.max())
             scale = max_offdiag * noise if cfg.max_offdiag_scale else noise
-            self.last.update(max_offdiag=max_offdiag, scale=scale,
-                             rmsd_mean=float(r[upper].detach().mean()),
-                             rmsd_min=float(r[upper].detach().min()))
+            self.last.update(
+                max_offdiag=max_offdiag,
+                scale=scale,
+                rmsd_mean=float(r[upper].detach().mean()),
+                rmsd_min=float(r[upper].detach().min()),
+            )
 
-            # Far apart relative to sigma: the ensemble is already spread and pushing further
-            # only buys off-manifold structures.
+            # The particles are already far apart relative to sigma.
             if max_offdiag < cfg.kernel_saturation_threshold:
                 self.last["updated"] = False
                 return False
@@ -159,12 +157,16 @@ class ConforFluxState:
         with torch.no_grad():
             k = 0
             for i in range(M):
-                self._put(self.s_particles, i,
-                          cfg.alpha_s * scale * rms_normalize(grads[k], cfg.rms_eps))
+                self._put(
+                    self.s_particles, i, cfg.alpha_s * scale * rms_normalize(grads[k], cfg.rms_eps)
+                )
                 k += 1
                 if update_z:
-                    self._put(self.z_particles, i,
-                              cfg.alpha_z * scale * rms_normalize(grads[k], cfg.rms_eps))
+                    self._put(
+                        self.z_particles,
+                        i,
+                        cfg.alpha_z * scale * rms_normalize(grads[k], cfg.rms_eps),
+                    )
                     k += 1
         self.last["updated"] = True
         return True

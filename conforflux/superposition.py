@@ -1,10 +1,5 @@
-"""Optimal superposition, one implementation.
+"""Kabsch superposition."""
 
-With row vectors the deviation |a_c M - b_c| is minimised by M = U F Vh, where
-cov = a_c^T b_c = U S Vh and F = diag(1, 1, det(U Vh)) removes the reflection. Applying M^T
-instead superposes by the inverse rotation; the guidance did that until 2026-08-07, so its
-pairwise distance was a Calpha-RMSD only while two structures already shared a frame.
-"""
 from __future__ import annotations
 
 import torch

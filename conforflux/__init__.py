@@ -16,5 +16,6 @@ __version__ = "0.1.0"
 def __getattr__(name):
     if name == "ConforFluxCallback":
         from conforflux.callback import ConforFluxCallback
+
         return ConforFluxCallback
     raise AttributeError(name)

@@ -24,3 +24,7 @@ Repository = "https://github.com/suzuki-2001/conforflux"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["conforflux*"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["boltz", "protenix", "openfold3"]

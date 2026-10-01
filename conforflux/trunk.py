@@ -51,10 +51,7 @@ def run_trunk(pl_module, batch):
     with torch.inference_mode(mode=False), torch.no_grad():
         s_inputs = pl_module.input_embedder(batch)
         s_init = pl_module.s_init(s_inputs)
-        z_init = (
-            pl_module.z_init_1(s_inputs)[:, :, None]
-            + pl_module.z_init_2(s_inputs)[:, None, :]
-        )
+        z_init = pl_module.z_init_1(s_inputs)[:, :, None] + pl_module.z_init_2(s_inputs)[:, None, :]
         rel_pos_enc = pl_module.rel_pos(batch)
         z_init = z_init + rel_pos_enc
         z_init = z_init + pl_module.token_bonds(batch["token_bonds"].float())
