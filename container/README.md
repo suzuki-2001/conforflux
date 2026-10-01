@@ -1,10 +1,11 @@
-# ConforFlux container
+## ConforFlux container
 
 `BACKBONE` selects which backbone the image installs — `boltz` (default), `protenix` or
 `openfold3` — and becomes the image's entry point. One backbone per image.
 
 Model weights are downloaded on first run into the backbone's cache (`~/.boltz`,
-`~/.openfold3`). Mount it to persist them.
+`~/.openfold3`). Mount it to persist them. Inside the Apptainer image the home directory is
+`/tmp`. OpenFold3 asks before downloading, so run its first `docker run` with `-it`.
 
 ## Docker
 
@@ -27,7 +28,7 @@ docker run --rm --gpus all --shm-size=8g \
 apptainer build --build-arg BACKBONE=boltz conforflux.sif container/Singularity.def
 
 apptainer run --nv \
-    --bind ~/.boltz:/root/.boltz \
+    --bind ~/.boltz:/tmp/.boltz \
     --bind $(pwd)/in:/work --bind $(pwd)/out:/out --pwd /work \
     conforflux.sif predict input.yaml --out_dir /out \
     --num_particles 5 --sigma 2.5 --alpha_s 0.02 --alpha_z 0.02 --seed 42 \

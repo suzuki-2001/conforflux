@@ -38,7 +38,7 @@ ENV CONFORFLUX_BACKBONE=${BACKBONE}
 # Dispatch to whichever CLI the selected backbone provides.
 RUN printf '%s\n' '#!/bin/sh' \
     'case "$CONFORFLUX_BACKBONE" in' \
-    '  boltz)     exec conforflux "$@" ;;' \
+    '  boltz)     exec boltz "$@" ;;' \
     '  protenix)  exec protenix "$@" ;;' \
     '  openfold3) exec run_openfold "$@" ;;' \
     'esac' > /usr/local/bin/entry && chmod +x /usr/local/bin/entry

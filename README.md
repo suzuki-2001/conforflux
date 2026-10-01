@@ -23,7 +23,7 @@ Or into an existing environment:
 
 ```bash
 pip install -e .                 # the ConforFlux package, shared by all three
-pip install -e ./boltz           # Boltz-2
+pip install -e "./boltz[cuda]"   # Boltz-2, with the cuEquivariance kernels
 pip install -e ./protenix        # Protenix
 pip install -e ./openfold3       # OpenFold3-preview2
 ```
