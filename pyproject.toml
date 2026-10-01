@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "conforflux"
-version = "0.1.0"
-description = "Inference-time particle guidance on Boltz-2 trunk embeddings for conformational diversity."
+version = "0.2.0"
+description = "Inference-time particle guidance on the trunk embeddings of Boltz-2, Protenix and OpenFold3 for conformational diversity."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
