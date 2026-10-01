@@ -1,8 +1,8 @@
 ## ConforFlux
 
-ConforFlux is an inference-time procedure for AlphaFold3-class structure predictors, introduced in [Particle-Guided Trunk Repulsion for Diverse Protein Conformations](https://www.biorxiv.org/content/10.64898/2026.05.16.725138v1). `M` parallel particles are coupled through a pairwise Cα-RMSD repulsion gradient, back-propagated to the trunk's single and pair embeddings. Each updated trunk is then decoded by the structure module as usual, so one input yields a diverse set of conformations instead of a single dominant prediction.
+ConforFlux is an inference-time procedure for AlphaFold3-class structure predictors, introduced in *ConforFlux: Particle-Guided Trunk Repulsion for Diverse Protein Conformations* (NeurIPS 2026; [preprint](https://www.biorxiv.org/content/10.64898/2026.05.16.725138v1)). `M` parallel particles are coupled through a pairwise Cα-RMSD repulsion gradient, back-propagated to the trunk's single and pair embeddings. Each updated trunk is then decoded by the structure module as usual, so one input yields a diverse set of conformations instead of a single dominant prediction.
 
-![ConforFlux overview](assets/overview.png)
+![ConforFlux](assets/method.png)
 
 Boltz-2, Protenix and OpenFold3-preview2 are bundled, each with ConforFlux added to its own inference command.
 
@@ -99,13 +99,10 @@ docker build --build-arg BACKBONE=protenix -f container/Dockerfile -t conforflux
 ## Citation
 
 ```bibtex
-@article{suzuki2026conforflux,
-  title   = {ConforFlux: Particle-Guided Trunk Repulsion for Diverse Protein Conformations},
-  author  = {Suzuki, Shosuke and Amagasa, Toshiyuki},
-  journal = {bioRxiv},
-  year    = {2026},
-  doi     = {10.64898/2026.05.16.725138},
-  url     = {https://www.biorxiv.org/content/10.64898/2026.05.16.725138v1},
-  publisher = {Cold Spring Harbor Laboratory}
+@inproceedings{suzuki2026conforflux,
+  title     = {ConforFlux: Particle-Guided Trunk Repulsion for Diverse Protein Conformations},
+  author    = {Suzuki, Shosuke and Amagasa, Toshiyuki},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026}
 }
 ```
