@@ -45,8 +45,16 @@ class ConforFluxState:
         self.M = num_particles
         self.s_particles = s_trunk.expand(num_particles, *s_trunk.shape[1:]).clone().float()
         self.z_particles = z_trunk.expand(num_particles, *z_trunk.shape[1:]).clone().float()
+        self._setup()
+
+    def _setup(self) -> None:
         self.bond = 3.8  # protein Calpha; RNA C1' is set on the first call
         self.last: dict = {}  # diagnostics for the caller to log
+        self.s_init = self.z_init = None
+        if self.cfg.reg_weight > 0:
+            self.s_init = self._take(self.s_particles, 0).detach().clone()
+            if self.cfg.alpha_z > 0:
+                self.z_init = self._take(self.z_particles, 0).detach().clone()
 
     @classmethod
     def from_particles(
@@ -55,11 +63,10 @@ class ConforFluxState:
         """Attach to particle tensors a backbone already owns, updating them in place."""
         st = cls.__new__(cls)
         st.cfg = cfg
-        st.M = int(s_particles.shape[0])
+        st.M = len(s_particles)
         st.s_particles = s_particles
         st.z_particles = z_particles
-        st.bond = 3.8
-        st.last = {}
+        st._setup()
         return st
 
     # A particle is a slice of a stacked tensor; OpenFold3's `_ListState` overrides these.
@@ -144,6 +151,7 @@ class ConforFluxState:
 
             # The particles are already far apart relative to sigma.
             if max_offdiag < cfg.kernel_saturation_threshold:
+                self._pull_back()
                 self.last["updated"] = False
                 return False
 
@@ -168,5 +176,18 @@ class ConforFluxState:
                         cfg.alpha_z * scale * rms_normalize(grads[k], cfg.rms_eps),
                     )
                     k += 1
+        self._pull_back()
         self.last["updated"] = True
         return True
+
+    def _pull_back(self) -> None:
+        if self.s_init is None:
+            return
+        w = self.cfg.reg_weight
+        with torch.no_grad():
+            for i in range(self.M):
+                self._put(self.s_particles, i, w * (self._take(self.s_particles, i) - self.s_init))
+                if self.z_init is not None:
+                    self._put(
+                        self.z_particles, i, w * (self._take(self.z_particles, i) - self.z_init)
+                    )

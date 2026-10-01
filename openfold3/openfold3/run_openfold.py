@@ -174,6 +174,21 @@ def train(runner_yaml: Path, seed: int | None = None, data_seed: int | None = No
 @click.option("--noise-level/--no-noise-level", "noise_level", default=False,
               help="ConforFlux: scale the step by the noise level of the step it is applied at. "
                    "Pushes harder, at a higher clashscore.")
+@click.option("--reg-weight", "--reg_weight", "reg_weight", type=float, default=None,
+              help="ConforFlux: fraction of each particle's displacement from the trunk "
+                   "embeddings removed at every update. Default 0, or 0.1 with --target-samples.")
+@click.option("--target-samples", "--target_samples", "target_samples", type=int, default=0,
+              help="ConforFlux: run guided rounds over seeds and sigmas until this many "
+                   "samples pass the filter. 0 runs once.")
+@click.option("--sigmas", "sigmas", type=str, default="0.5,1.0,1.5,2.0,2.5",
+              help="ConforFlux: sigmas the rounds cycle through (with --target-samples).")
+@click.option("--plddt-filter", "--plddt_filter", "plddt_filter", is_flag=True,
+              help="ConforFlux: with --target-samples, also drop samples whose windowed pLDDT "
+                   "falls below the unguided predictions'.")
+@click.option("--num-reference", "--num_reference", "num_reference", type=int, default=5,
+              help="ConforFlux: unguided predictions the pLDDT filter compares against.")
+@click.option("--max-rounds", "--max_rounds", "max_rounds", type=int, default=20,
+              help="ConforFlux: stop after this many guided rounds.")
 @click.option("--gradient-checkpointing", "--gradient_checkpointing", "gradient_checkpointing",
               is_flag=True, default=False,
               help="ConforFlux: recompute diffusion-transformer blocks in the backward pass "
@@ -195,6 +210,12 @@ def predict(
     alpha_z: float = 0.02,
     update_interval: int = 5,
     noise_level: bool = False,
+    reg_weight: float | None = None,
+    target_samples: int = 0,
+    sigmas: str = "0.5,1.0,1.5,2.0,2.5",
+    plddt_filter: bool = False,
+    num_reference: int = 5,
+    max_rounds: int = 20,
     gradient_checkpointing: bool = False,
 ):
     """Perform inference on a set of queries defined in the query_json."""
@@ -240,6 +261,8 @@ def predict(
     # Run the forward pass
     expt_runner.setup()
 
+    if reg_weight is None:
+        reg_weight = 0.1 if target_samples > 0 else 0.0
     if num_particles > 0:
         from openfold3.conforflux_guidance_of3 import ConforFluxConfig
 
@@ -250,6 +273,7 @@ def predict(
             alpha_z=alpha_z,
             update_interval=update_interval,
             noise_scale=noise_level,
+            reg_weight=reg_weight,
         )
         if gradient_checkpointing:
             # use_reentrant must stay False: the guidance takes its gradient through
@@ -258,8 +282,55 @@ def predict(
             dt.blocks_per_ckpt = 1
             dt.use_reentrant = False
 
-    expt_runner.run(query_set)
+    if target_samples > 0:
+        _conforflux_pipeline(expt_runner, query_set, target_samples, num_particles, sigmas,
+                             plddt_filter, num_reference, max_rounds)
+    else:
+        expt_runner.run(query_set)
     expt_runner.cleanup()
+
+
+def _conforflux_pipeline(expt_runner, query_set, target_samples, num_particles, sigmas,
+                         plddt_filter, num_reference, max_rounds):
+    from functools import partial
+
+    from conforflux.pipeline import run as run_pipeline
+    from openfold3.projects.of3_all_atom.config.inference_query_format import (
+        InferenceQuerySet,
+    )
+
+    if num_particles <= 0:
+        raise click.UsageError("--target-samples needs --num-particles > 0")
+    model = expt_runner.lightning_module.model
+    cf_config = model.sample_diffusion.conforflux_config
+    first_seed = expt_runner.seeds[0]
+
+    def sample_round(round_dir, round_seed, n, cfg, queries):
+        expt_runner.seeds = [round_seed]
+        for name in ("data_module_config", "lightning_data_module"):
+            expt_runner.__dict__.pop(name, None)
+        model.shared.diffusion.no_full_rollout_samples = n
+        model.sample_diffusion.conforflux_config = cfg
+        Path(round_dir).mkdir(parents=True, exist_ok=True)
+        for callback in expt_runner.callbacks:
+            if hasattr(callback, "output_dir"):
+                callback.output_dir = Path(round_dir)
+        expt_runner.run(queries)
+
+    for query_id, query in query_set.queries.items():
+        queries = InferenceQuerySet(seeds=query_set.seeds, queries={query_id: query})
+        run_pipeline(
+            partial(sample_round, queries=queries),
+            expt_runner.output_dir / query_id,
+            cf_config,
+            target_samples,
+            num_particles,
+            plddt_filter=plddt_filter,
+            num_reference=num_reference,
+            sigmas=tuple(float(s) for s in sigmas.split(",")),
+            max_rounds=max_rounds,
+            seed=first_seed,
+        )
 
 
 @cli.command()

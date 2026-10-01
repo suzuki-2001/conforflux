@@ -1076,6 +1076,44 @@ def cli() -> None:
          "Pushes harder, at a higher clashscore.",
 )
 @click.option(
+    "--reg_weight",
+    type=float,
+    default=None,
+    help="ConforFlux: fraction of each particle's displacement from the trunk embeddings "
+         "removed at every update. Default 0, or 0.1 with --target_samples.",
+)
+@click.option(
+    "--target_samples",
+    type=int,
+    default=0,
+    help="ConforFlux: run guided rounds over seeds and sigmas until this many samples pass "
+         "the filter. 0 runs once.",
+)
+@click.option(
+    "--sigmas",
+    type=str,
+    default="0.5,1.0,1.5,2.0,2.5",
+    help="ConforFlux: sigmas the rounds cycle through (with --target_samples).",
+)
+@click.option(
+    "--plddt_filter",
+    is_flag=True,
+    help="ConforFlux: with --target_samples, also drop samples whose windowed pLDDT falls "
+         "below the unguided predictions'.",
+)
+@click.option(
+    "--num_reference",
+    type=int,
+    default=5,
+    help="ConforFlux: unguided predictions the pLDDT filter compares against.",
+)
+@click.option(
+    "--max_rounds",
+    type=int,
+    default=20,
+    help="ConforFlux: stop after this many guided rounds.",
+)
+@click.option(
     "--gradient_checkpointing",
     is_flag=True,
     help="ConforFlux: checkpoint the per-particle structure-module forward to cut peak memory.",
@@ -1124,6 +1162,12 @@ def predict(  # noqa: C901, PLR0915, PLR0912
     alpha_z: float = 0.02,
     update_interval: int = 5,
     noise_level: bool = False,
+    reg_weight: Optional[float] = None,
+    target_samples: int = 0,
+    sigmas: str = "0.5,1.0,1.5,2.0,2.5",
+    plddt_filter: bool = False,
+    num_reference: int = 5,
+    max_rounds: int = 20,
     gradient_checkpointing: bool = False,
 ) -> None:
     """Run predictions with Boltz."""
@@ -1303,21 +1347,27 @@ def predict(  # noqa: C901, PLR0915, PLR0912
     # ConforFlux couples num_particles trajectories through a repulsion gradient on the
     # trunk conditioning. Imported only when asked for, so stock Boltz needs no extra package.
     callbacks = [pred_writer]
+    if target_samples > 0 and num_particles <= 0:
+        raise click.UsageError("--target_samples needs --num_particles > 0")
+    if reg_weight is None:
+        reg_weight = 0.1 if target_samples > 0 else 0.0
     if num_particles > 0:
         from conforflux.callback import ConforFluxCallback
         from conforflux.config import ConforFluxConfig
 
-        callbacks.append(ConforFluxCallback(
+        cf_callback = ConforFluxCallback(
             ConforFluxConfig(
                 sigma=sigma,
                 alpha_s=alpha_s,
                 alpha_z=alpha_z,
                 update_interval=update_interval,
                 noise_scale=noise_level,
+                reg_weight=reg_weight,
                 gradient_checkpointing=gradient_checkpointing,
             ),
             num_particles=num_particles,
-        ))
+        )
+        callbacks.append(cf_callback)
 
     # Set up trainer
     trainer = Trainer(
@@ -1394,11 +1444,40 @@ def predict(  # noqa: C901, PLR0915, PLR0912
         model_module.eval()
 
         # Compute structure predictions
-        trainer.predict(
-            model_module,
-            datamodule=data_module,
-            return_predictions=False,
-        )
+        if target_samples > 0:
+            from conforflux.pipeline import run as run_pipeline
+
+            cf_config = cf_callback.config
+
+            def sample_round(round_dir, round_seed, n, cfg):
+                seed_everything(round_seed)
+                pred_writer.output_dir = Path(round_dir)
+                pred_writer.output_dir.mkdir(parents=True, exist_ok=True)
+                cf_callback.config = cfg
+                cf_callback.num_particles = n
+                model_module.predict_args["diffusion_samples"] = n
+                trainer.predict(model_module, datamodule=data_module, return_predictions=False)
+
+            for record in filtered_manifest.records:
+                data_module.manifest = Manifest(records=[record])
+                run_pipeline(
+                    sample_round,
+                    out_dir / record.id,
+                    cf_config,
+                    target_samples,
+                    num_particles,
+                    plddt_filter=plddt_filter,
+                    num_reference=num_reference,
+                    sigmas=tuple(float(s) for s in sigmas.split(",")),
+                    max_rounds=max_rounds,
+                    seed=0 if seed is None else seed,
+                )
+        else:
+            trainer.predict(
+                model_module,
+                datamodule=data_module,
+                return_predictions=False,
+            )
 
     # Check if affinity predictions are needed
     if any(r.affinity for r in manifest.records):

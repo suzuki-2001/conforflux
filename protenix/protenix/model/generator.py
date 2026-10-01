@@ -313,7 +313,8 @@ def sample_diffusion_conforflux(
     Returns coords [M, N_atom, 3].
     """
     from protenix.model.conforflux_guidance import (
-        ConforFluxConfig, conforflux_update, ca_indices_from_features, is_guided_step,
+        ConforFluxConfig, ConforFluxState, conforflux_update, ca_indices_from_features,
+        is_guided_step,
     )
     if cf_cfg is None:
         cf_cfg = ConforFluxConfig()
@@ -335,6 +336,7 @@ def sample_diffusion_conforflux(
     # per-particle trunk embeddings, leading M dim
     s_particles = s_trunk.unsqueeze(0).expand(M, *s_trunk.shape).clone()  # [M, N_tok, c_s]
     z_particles = z_trunk.unsqueeze(0).expand(M, *z_trunk.shape).clone()  # [M, N_tok, N_tok, c_z]
+    cf_state = ConforFluxState.from_particles(s_particles, z_particles, cf_cfg)
 
     def _denoise_one(x_i, t_i, s_i, z_i):
         # x_i [N_atom,3], t_i scalar tensor, s_i [N_tok,c_s], z_i [N_tok,N_tok,c_z]
@@ -372,7 +374,7 @@ def sample_diffusion_conforflux(
         if is_guided_step(step_i, cf_cfg):
             s_particles, z_particles = conforflux_update(
                 s_particles, z_particles, x_noisy, t_hat_M,
-                _denoiser_fn, ca_idx, cf_cfg, step_i, total,
+                _denoiser_fn, ca_idx, cf_cfg, step_i, total, state=cf_state,
             )
 
         x_denoised = torch.stack(

@@ -39,17 +39,6 @@ class _ListState(ConforFluxState):
     def _copy(self, arr, dst, src):
         arr[dst] = arr[src].clone()
 
-    @classmethod
-    def from_lists(cls, s_list: list, z_list: list, cfg: ConforFluxConfig) -> "_ListState":
-        st = cls.__new__(cls)
-        st.cfg = cfg
-        st.M = len(s_list)
-        st.s_particles = s_list
-        st.z_particles = z_list
-        st.bond = 3.8
-        st.last = {}
-        return st
-
 
 def conforflux_update(
     s_particles: list,
@@ -64,7 +53,7 @@ def conforflux_update(
     state: _ListState | None = None,
 ) -> tuple[list, list]:
     """One guided embedding update, in OF3's list-of-particles layout."""
-    st = state if state is not None else _ListState.from_lists(s_particles, z_particles, cfg)
+    st = state if state is not None else _ListState.from_particles(s_particles, z_particles, cfg)
     st.s_particles = s_particles
     st.z_particles = z_particles
 
@@ -91,7 +80,9 @@ def sample_conforflux(
     **denoise_kwargs,
 ) -> Tensor:
     """SampleDiffusion.forward with the M rollouts coupled. Returns [B, M, N_atom, 3]."""
-    from openfold3.core.model.structure.diffusion_module import centre_random_augmentation
+    from openfold3.core.model.structure.diffusion_module import (
+        centre_random_augmentation,
+    )
     from openfold3.core.utils.atomize_utils import get_token_center_atoms
 
     sd = sample_diffusion
@@ -129,11 +120,13 @@ def sample_conforflux(
     with torch.inference_mode(mode=False):
         s_particles = [si_trunk.detach().clone() for _ in range(M)]
         z_particles = [zij_trunk.detach().clone() for _ in range(M)]
-        state = _ListState.from_lists(s_particles, z_particles, cfg)
+        state = _ListState.from_particles(s_particles, z_particles, cfg)
         xl_list = [
             noise_schedule[0]
             * torch.randn(
-                (batch_dim, 1, num_atoms, 3), device=atom_mask.device, dtype=atom_mask.dtype
+                (batch_dim, 1, num_atoms, 3),
+                device=atom_mask.device,
+                dtype=atom_mask.dtype,
             )
             for _ in range(M)
         ]

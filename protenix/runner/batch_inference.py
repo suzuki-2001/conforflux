@@ -309,6 +309,7 @@ def get_default_runner(
     cf_alpha_z: float = 0.02,
     cf_update_interval: int = 3,
     cf_noise_level: bool = False,
+    cf_reg_weight: float = 0.0,
 ) -> InferenceRunner:
     """
     Get a default InferenceRunner with the specified configurations.
@@ -373,6 +374,7 @@ def get_default_runner(
     configs.conforflux_alpha_z = cf_alpha_z
     configs.conforflux_update_interval = cf_update_interval
     configs.conforflux_noise_scale = cf_noise_level
+    configs.conforflux_reg_weight = cf_reg_weight
     configs.sample_diffusion.N_step = n_step
     configs.dtype = dtype
     configs.use_msa = use_msa
@@ -468,6 +470,12 @@ def inference_jsons(
     cf_alpha_z: float = 0.02,
     cf_update_interval: int = 3,
     cf_noise_level: bool = False,
+    cf_reg_weight: float = 0.0,
+    cf_target_samples: int = 0,
+    cf_sigmas: str = "0.5,1.0,1.5,2.0,2.5",
+    cf_plddt_filter: bool = False,
+    cf_num_reference: int = 5,
+    cf_max_rounds: int = 20,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,
@@ -557,8 +565,31 @@ def inference_jsons(
         cf_alpha_z=cf_alpha_z,
         cf_update_interval=cf_update_interval,
         cf_noise_level=cf_noise_level,
+        cf_reg_weight=cf_reg_weight,
     )
     configs = runner.configs
+    if cf_target_samples > 0:
+        _conforflux_pipeline(
+            runner, configs, infer_jsons, out_dir, cf_target_samples, num_particles,
+            cf_sigmas, cf_plddt_filter, cf_num_reference, cf_max_rounds, seeds,
+            dict(
+                use_msa=use_msa,
+                use_template=use_template,
+                use_rna_msa=use_rna_msa,
+                msa_server_mode=msa_server_mode,
+                hmmsearch_binary_path=hmmsearch_binary_path,
+                hmmbuild_binary_path=hmmbuild_binary_path,
+                seqres_database_path=seqres_database_path,
+                nhmmer_binary_path=nhmmer_binary_path,
+                hmmalign_binary_path=hmmalign_binary_path,
+                hmmbuild_rna_binary_path=hmmbuild_rna_binary_path,
+                ntrna_database_path=ntrna_database_path,
+                rfam_database_path=rfam_database_path,
+                rna_central_database_path=rna_central_database_path,
+                nhmmer_n_cpu=nhmmer_n_cpu,
+            ),
+        )
+        return
     for _, infer_json in enumerate(tqdm.tqdm(infer_jsons)):
         try:
             configs["input_json_path"] = preprocess_input(
@@ -584,6 +615,56 @@ def inference_jsons(
             infer_errors[infer_json] = str(exc)
     if len(infer_errors) > 0:
         logger.warning(f"Run inference failed: {infer_errors}")
+
+
+def _conforflux_pipeline(runner, configs, infer_jsons, out_dir, target_samples, num_particles,
+                         sigmas, plddt_filter, num_reference, max_rounds, seeds,
+                         preprocess_kwargs) -> None:
+    from conforflux.config import ConforFluxConfig
+    from conforflux.pipeline import run as run_pipeline
+
+    if num_particles <= 0:
+        raise ValueError("--target_samples needs --num_particles > 0")
+    cf_config = ConforFluxConfig(
+        sigma=configs.conforflux_sigma,
+        alpha_s=configs.conforflux_alpha_s,
+        alpha_z=configs.conforflux_alpha_z,
+        update_interval=configs.conforflux_update_interval,
+        noise_scale=configs.conforflux_noise_scale,
+        reg_weight=configs.conforflux_reg_weight,
+    )
+    configs.use_seeds_in_json = False
+
+    def sample_round(round_dir, round_seed, n, cfg):
+        configs.seeds = [round_seed]
+        configs.sample_diffusion.N_sample = n
+        configs.conforflux_enable = cfg is not None
+        if cfg is not None:
+            configs.conforflux_sigma = cfg.sigma
+        runner.dumper.base_dir = str(round_dir)
+        infer_predict(runner, configs)
+
+    for infer_json in infer_jsons:
+        with open(preprocess_input(infer_json, out_dir=out_dir, **preprocess_kwargs)) as f:
+            entries = json.load(f)
+        for entry in entries:
+            target_dir = os.path.join(out_dir, entry["name"])
+            os.makedirs(target_dir, exist_ok=True)
+            configs["input_json_path"] = os.path.join(target_dir, "input.json")
+            with open(configs.input_json_path, "w") as f:
+                json.dump([entry], f, indent=1)
+            run_pipeline(
+                sample_round,
+                target_dir,
+                cf_config,
+                target_samples,
+                num_particles,
+                plddt_filter=plddt_filter,
+                num_reference=num_reference,
+                sigmas=tuple(float(x) for x in sigmas.split(",")),
+                max_rounds=max_rounds,
+                seed=seeds[0],
+            )
 
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], show_default=True)
@@ -735,6 +816,21 @@ def protenix_cli() -> None:
 @click.option("--noise_level/--no_noise_level", "cf_noise_level", default=False,
               help="ConforFlux: scale the step by the noise level of the step it is applied at. "
                    "Pushes harder, at a higher clashscore.")
+@click.option("--reg_weight", "cf_reg_weight", type=float, default=None,
+              help="ConforFlux: fraction of each particle's displacement from the trunk "
+                   "embeddings removed at every update. Default 0, or 0.1 with --target_samples.")
+@click.option("--target_samples", "cf_target_samples", type=int, default=0,
+              help="ConforFlux: run guided rounds over seeds and sigmas until this many "
+                   "samples pass the filter. 0 runs once.")
+@click.option("--sigmas", "cf_sigmas", type=str, default="0.5,1.0,1.5,2.0,2.5",
+              help="ConforFlux: sigmas the rounds cycle through (with --target_samples).")
+@click.option("--plddt_filter", "cf_plddt_filter", is_flag=True,
+              help="ConforFlux: with --target_samples, also drop samples whose windowed pLDDT "
+                   "falls below the unguided predictions'.")
+@click.option("--num_reference", "cf_num_reference", type=int, default=5,
+              help="ConforFlux: unguided predictions the pLDDT filter compares against.")
+@click.option("--max_rounds", "cf_max_rounds", type=int, default=20,
+              help="ConforFlux: stop after this many guided rounds.")
 @click.option(
     "--use_tfg_guidance",
     type=bool,
@@ -830,6 +926,12 @@ def predict(
     cf_alpha_z: float = 0.02,
     cf_update_interval: int = 5,
     cf_noise_level: bool = False,
+    cf_reg_weight: Optional[float] = None,
+    cf_target_samples: int = 0,
+    cf_sigmas: str = "0.5,1.0,1.5,2.0,2.5",
+    cf_plddt_filter: bool = False,
+    cf_num_reference: int = 5,
+    cf_max_rounds: int = 20,
     hmmsearch_binary_path: Optional[str] = None,
     hmmbuild_binary_path: Optional[str] = None,
     seqres_database_path: Optional[str] = None,
@@ -965,6 +1067,11 @@ def predict(
         logger.info("=" * 50)
         logger.info("Using Training-Free Guidance (TFG) for inference.\n")
         logger.info("=" * 50)
+    if cf_reg_weight is None:
+        cf_reg_weight = 0.1 if cf_target_samples > 0 else 0.0
+    if cf_target_samples > 0:
+        # samples are ranked by the pLDDT in the B-factor, which Protenix writes only with this on
+        need_atom_confidence = True
     inference_jsons(
         input,
         out_dir,
@@ -993,6 +1100,12 @@ def predict(
         cf_alpha_z=cf_alpha_z,
         cf_update_interval=cf_update_interval,
         cf_noise_level=cf_noise_level,
+        cf_reg_weight=cf_reg_weight,
+        cf_target_samples=cf_target_samples,
+        cf_sigmas=cf_sigmas,
+        cf_plddt_filter=cf_plddt_filter,
+        cf_num_reference=cf_num_reference,
+        cf_max_rounds=cf_max_rounds,
         hmmsearch_binary_path=hmmsearch_binary_path,
         hmmbuild_binary_path=hmmbuild_binary_path,
         seqres_database_path=seqres_database_path,

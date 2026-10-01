@@ -14,6 +14,7 @@ class ConforFluxConfig:
     noise_scale: bool = False  # scale the step by the EDM noise level
     max_offdiag_scale: bool = True  # scale the step by the largest off-diagonal kernel
     kernel_saturation_threshold: float = 0.01  # below this the particles are already apart
+    reg_weight: float = 0.0  # fraction of the displacement from the trunk output removed per update
     resample: bool = True  # replace particles whose backbone has broken
     resample_interval: int = 10
     bond_tol: float = 1.0  # Angstrom around the expected Calpha-Calpha bond

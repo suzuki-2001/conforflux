@@ -52,10 +52,38 @@ run_openfold predict --query_json input.json --output_dir ./out \
 | `--alpha_s` / `--alpha_z` | `0.02` | RMS-normalised step size for the single and pair embedding. |
 | `--update_interval` | `3` | Fire the gradient every K diffusion steps. |
 | `--noise_level` | off | Scale the step by the noise level of the step it is applied at. Pushes harder: a wider ensemble at a higher clashscore. |
+| `--reg_weight` | `0`, or `0.1` with `--target_samples` | Pull the embeddings back toward the trunk's own: each update removes this fraction of their displacement from it. |
+| `--target_samples` | `0` | Run the sampling pipeline below until this many samples pass the filter. `0` runs once. |
+| `--sigmas` | `0.5,…,2.5` | Bandwidths the pipeline's rounds cycle through. |
+| `--plddt_filter` | off | Add the pLDDT criterion to the pipeline's filter. |
+| `--num_reference` | `5` | Unguided predictions made for `--plddt_filter`. |
+| `--max_rounds` | `20` | Guided rounds before the pipeline stops, filled or not. |
 | `--gradient_checkpointing` | off | Reduce peak GPU memory. Boltz-2 and OpenFold3. |
 | `--seeds` | — | OpenFold3 only, comma-separated. Upstream draws its seeds from a fixed start seed. |
 
-The defaults are the paper's `Ours (λ)`. `--noise_level` gives `Ours (λ_t)`.
+Without `--target_samples` the defaults are the paper's `Ours (λ)`, and `--noise_level` gives `Ours (λ_t)`. `--reg_weight` and the pipeline are not used in the paper.
+
+## Sampling pipeline
+
+```bash
+boltz predict input.yaml --out_dir ./out --num_particles 5 --target_samples 50
+```
+
+1. Guided rounds of `--num_particles`, one seed each, cycling through `--sigmas`, with `--reg_weight 0.1`.
+2. Every sample goes through the geometry filter below, and with `--plddt_filter` also through the pLDDT filter against `--num_reference` unguided predictions made first.
+3. Rounds stop once `--target_samples` have passed or after `--max_rounds`; if more passed than asked for, the highest mean pLDDT are kept.
+
+Each input gets its own directory, named after it, holding `rounds/`, the selected structures in `kept/` and as one multi-model mmCIF in `kept.cif`, every sample's filter result in `samples.tsv`, the settings in `run.json`, and with `--plddt_filter` the unguided predictions in `unguided/`. The same flags work with `protenix pred` and `run_openfold predict`.
+
+## Filter
+
+Geometry, from ConforMix's sample filter: consecutive Cα–Cα under 4.5 Å, C–N under 2.0 Å, and no heavy atoms within 0.5 Å between residues of one chain three or more apart. pLDDT, ConforMix's windowed criterion: no 10-residue window whose mean pLDDT falls more than 0.2 below the per-residue minimum of the unguided predictions. pLDDT is read from the B-factor column; Protenix writes it there only with `--need_atom_confidence true`, which the pipeline sets. To filter existing predictions:
+
+```bash
+python -m conforflux.filter ./guided --reference ./unguided --out filter.tsv --keep_dir ./kept
+```
+
+Without `--reference` only the geometry is checked.
 
 ## Container
 

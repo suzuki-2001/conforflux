@@ -10,7 +10,9 @@ from conforflux.trunk import get_ca_indices, run_trunk
 
 
 class ConforFluxCallback(Callback):
-    def __init__(self, config: ConforFluxConfig, num_particles: int) -> None:
+    """`config` None runs the backbone unguided."""
+
+    def __init__(self, config: ConforFluxConfig | None, num_particles: int) -> None:
         self.config = config
         self.num_particles = num_particles
         self._hooks: ConforFluxHooks | None = None
@@ -32,6 +34,9 @@ class ConforFluxCallback(Callback):
         batch_idx,
         dataloader_idx: int = 0,
     ) -> None:
+        if self.config is None:
+            pl_module.guidance_hooks = None
+            return
         device = next(pl_module.parameters()).device
 
         with torch.inference_mode(mode=False), torch.no_grad():
